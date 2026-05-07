@@ -3,6 +3,8 @@ name = "funthenticate"
 version = "0.1.0"
 description = "Playful login and challenge rituals, with optional Authlib/OIDC integration."
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Michel Philippin" },
