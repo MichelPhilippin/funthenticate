@@ -1,0 +1,81 @@
+[project]
+name = "funthenticate"
+version = "0.1.0"
+description = "Playful login and challenge rituals, with optional Authlib/OIDC integration."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Michel Philippin" },
+]
+keywords = [
+    "authlib",
+    "authentication",
+    "challenge",
+    "flask",
+    "fun",
+    "oauth",
+    "oidc",
+    "security",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP :: Session",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+auth = ["authlib>=1.7.2"]
+
+[project.urls]
+Repository = "https://github.com/michel-philippin/funthenticate"
+Issues = "https://github.com/michel-philippin/funthenticate/issues"
+
+[project.scripts]
+funthenticate = "funthenticate.cli:main"
+
+[build-system]
+requires = ["setuptools>=80.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "build>=1.3.0",
+    "flask>=3.1.3",
+    "pytest>=8.4.0",
+    "ruff>=0.11.0",
+    "setuptools>=80.0.0",
+    "twine>=6.0.0",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+funthenticate = ["py.typed", "assets/*.css"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
