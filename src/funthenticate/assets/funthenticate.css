@@ -5,15 +5,15 @@
   --fun-text: #172026;
   --fun-muted: #596873;
   --fun-line: #d5e1e8;
-  --fun-red: #ac0a20;
-  --fun-sky: #23a9f2;
-  --fun-green: #0c5332;
-  --fun-indigo: #3632b1;
+  --fun-red: #d67540;
+  --fun-sky: #106ebe;
+  --fun-green: #37a660;
+  --fun-indigo: #7f85f5;
   --fun-primary: var(--fun-green);
-  --fun-primary-hover: #083d25;
+  --fun-primary-hover: #1f7046;
   --fun-accent: var(--fun-red);
   --fun-focus: var(--fun-sky);
-  --fun-shadow: 0 22px 60px rgba(54, 50, 177, 0.16);
+  --fun-shadow: 0 22px 60px rgba(95, 119, 237, 0.16);
 }
 
 .funthenticate-shell {
@@ -22,9 +22,9 @@
   place-items: center;
   padding: 32px;
   background:
-    linear-gradient(135deg, rgba(35, 169, 242, 0.16), transparent 38%),
-    linear-gradient(315deg, rgba(172, 10, 32, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(54, 50, 177, 0.08), transparent 48%),
+    linear-gradient(135deg, rgba(0, 120, 212, 0.16), transparent 38%),
+    linear-gradient(315deg, rgba(223, 26, 54, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(95, 119, 237, 0.08), transparent 48%),
     var(--fun-bg);
   color: var(--fun-text);
   font-family:
@@ -94,7 +94,7 @@
 }
 
 .funthenticate-field input:focus {
-  outline: 3px solid rgba(35, 169, 242, 0.3);
+  outline: 3px solid rgba(0, 120, 212, 0.3);
   border-color: var(--fun-focus);
 }
 
@@ -118,33 +118,33 @@
 }
 
 .funthenticate-option {
-  background: rgba(35, 169, 242, 0.12);
+  background: rgba(0, 120, 212, 0.12);
   color: var(--fun-text);
 }
 
 .funthenticate-option:hover {
-  background: rgba(35, 169, 242, 0.2);
+  background: rgba(0, 120, 212, 0.2);
 }
 
 .funthenticate-value-chain {
   padding: 14px;
-  overflow-x: auto;
+  overflow-wrap: anywhere;
   border: 1px solid var(--fun-line);
   border-radius: 8px;
   background: var(--fun-indigo);
   color: #f9faf7;
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-size: 0.95rem;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .funthenticate-canvas-placeholder {
   min-height: 220px;
-  border: 1px dashed rgba(12, 83, 50, 0.55);
+  border: 1px dashed rgba(42, 149, 93, 0.55);
   border-radius: 8px;
   background:
-    linear-gradient(rgba(35, 169, 242, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(35, 169, 242, 0.16) 1px, transparent 1px),
+    linear-gradient(rgba(0, 120, 212, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 120, 212, 0.16) 1px, transparent 1px),
     #fbfcfb;
   background-size: 18px 18px;
 }
