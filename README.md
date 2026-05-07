@@ -1,18 +1,34 @@
 # funthenticate
 
-The world keeps getting more serious, and login is usually one of its most serious little chores. Funthenticate gives that moment a grin: a playful Authlib wrapper that lets your app ask users to draw a key, crack a conversion lock, gamble on a secret number, or click the world's most confident popup. Stop there for a purely fun gate, or continue into a real OAuth/OIDC redirect when the stakes actually call for it.
+Login is usually a gray door: click, redirect, consent, callback, done. `funthenticate` turns that little threshold into a tiny ritual.
 
-When you do need real authentication, the important part stays intentionally boring: Authlib and your identity provider do the identity work. Funthenticate adds optional rituals, sequenced challenge state, deterministic welcome badges, and provider helpers so login feels less like a gray door and more like a tiny moment of relief.
+Ask someone to draw a key. Make them unlock a conversion puzzle. Let them gamble against a secret number. Show the most suspiciously confident popup in auth history. Then either stop there for a harmless fun gate, or continue into real OAuth/OIDC through Authlib when identity actually matters.
 
-Do not use these challenges as identity proof by themselves. They are theatrical velvet ropes, onboarding rituals, or small morale machines. Pair them with Microsoft Entra ID, Google, Okta, or another OIDC provider whenever identity actually matters.
+The serious layer stays serious: Google, Microsoft Entra ID, Okta, or any OIDC provider still proves who the user is. `funthenticate` adds the memorable prelude around it: prompt sequences, challenge state, welcome badges, provider helpers, and a small built-in UI for Flask apps that want to feel a little less like a filing cabinet.
 
-## Features
+> These challenges are not passwords, MFA, or identity proof. They are theatrical velvet ropes. Delightful velvet ropes, but still velvet.
 
-- Authlib wrapper for Flask-backed OAuth/OIDC flows
-- Google and Microsoft Entra provider helpers
-- Drawing, conversion, operator-guessing, popup, and chance-based login rituals
-- Fun-only missions that do not need a provider redirect
-- Prompt sequences so multiple rituals can be chained together
+## Why Use It?
+
+- Add a low-stakes ritual before SSO without replacing SSO.
+- Make internal tools, demos, labs, and onboarding flows feel more human.
+- Chain multiple prompts into a small login ceremony.
+- Run fun-only gates without OAuth, or redirect to Authlib/OIDC after the ritual passes.
+- Ship quickly with built-in prompt cards, CSS, provider helpers, and typed Python APIs.
+
+## Current Features
+
+- Flask-friendly `FunAuth` flow manager.
+- Optional Authlib/OIDC integration via `funthenticate[auth]`.
+- Google and Microsoft Entra provider helpers.
+- Built-in prompt deck: drawing, conversion lock, operator conversion lock, number guessing, and popup acknowledgement.
+- Prompt sequences with progress tracking.
+- Fun-only missions using `complete_fun(...)`.
+- Provider-backed missions using `redirect_to_provider(...)` and `complete_login(...)`.
+- Deterministic welcome badges after a successful mission.
+- Built-in HTML renderer and bundled stylesheet.
+- CLI helpers for discovering prompts and idea keys.
+- Typed package metadata via `py.typed`.
 
 ## Install
 
@@ -20,7 +36,7 @@ Do not use these challenges as identity proof by themselves. They are theatrical
 uv add funthenticate
 ```
 
-For provider-backed OAuth/OIDC flows, install the Authlib extra:
+For OAuth/OIDC provider flows, install the Authlib extra:
 
 ```powershell
 uv add "funthenticate[auth]"
@@ -35,31 +51,12 @@ uv run ruff check .
 uv run ruff format . --check
 ```
 
-## Basic Flask Flow
+## Five-Minute Fun Gate
 
-Funthenticate can be used as a fun-only gate or as a playful pre-step before Authlib.
-
-```mermaid
-flowchart TD
-    A[Start fun mission] --> B[Show current prompt]
-    B --> C{Prompt passed?}
-    C -- no --> B
-    C -- yes --> D{More prompts?}
-    D -- yes --> E[Advance to next prompt]
-    E --> B
-    D -- no --> F{Provider auth configured?}
-    F -- no --> G[complete_fun]
-    F -- yes --> H[redirect_to_provider]
-    H --> I[OAuth/OIDC provider]
-    I --> J[complete_login]
-    G --> K[App continues]
-    J --> K
-```
-
-### Fun-Only Flow
+This example creates a two-step fun-only gate: accept the popup, solve the number guess, then continue to `/dashboard`.
 
 ```python
-from flask import Flask, redirect, session
+from flask import Flask, redirect, request, session
 
 from funthenticate import FunAuth
 
@@ -89,17 +86,19 @@ def answer_popup():
 
 @app.post("/login/guess")
 def answer_guess():
-    result = auth.answer_number_guess(session, 7)
+    result = auth.answer_number_guess(session, int(request.form["guess"]))
     if not result.passed:
         return result.message, 400
     done = auth.complete_fun(session)
     return redirect(done.next_url or "/")
 ```
 
-### Provider Flow
+## OAuth/OIDC Flow
+
+Use the ritual as a pre-step, then hand off to the actual provider.
 
 ```python
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, redirect, session, url_for
 
 from funthenticate import FunAuth, google_provider
 
@@ -137,23 +136,43 @@ def auth_callback():
     return redirect(result.next_url or "/")
 ```
 
+## Flow Shape
+
+```mermaid
+flowchart TD
+    A[prepare_mission] --> B[Show current prompt]
+    B --> C[Answer prompt]
+    C --> D{Passed?}
+    D -- no --> B
+    D -- yes --> E{More prompts?}
+    E -- yes --> F[current_mission]
+    F --> B
+    E -- no --> G{Provider configured?}
+    G -- no --> H[complete_fun]
+    G -- yes --> I[redirect_to_provider]
+    I --> J[OAuth/OIDC provider]
+    J --> K[complete_login]
+    H --> L[App continues]
+    K --> L
+```
+
 ## Built-In Prompts
 
 `default_fun_prompts()` currently includes:
 
-- `draw-key`: draw a simple key shape
-- `conversion-lock`: solve a numeric conversion chain
-- `operator-conversion-lock`: infer the hidden operators between converted numbers
-- `number-guess`: guess a secret number
-- `authorized-popup`: acknowledge `I'm authorized`
+- `draw-key`: draw a simple key shape.
+- `conversion-lock`: solve a numeric conversion chain.
+- `operator-conversion-lock`: infer the hidden operators between converted numbers.
+- `number-guess`: guess a secret number with limited tries.
+- `authorized-popup`: acknowledge `I'm authorized`.
 
-Select a prompt when preparing login:
+Use one prompt:
 
 ```python
 mission = auth.prepare_mission(session, "google", prompt_key="draw-key")
 ```
 
-For multiple prompts in sequence, pass `prompt_keys` instead:
+Or chain several:
 
 ```python
 mission = auth.prepare_mission(
@@ -163,11 +182,11 @@ mission = auth.prepare_mission(
 )
 ```
 
-`prepare_login(...)` remains available as a compatibility alias, but new code should prefer `prepare_mission(...)`. After each successful answer, `auth.current_mission(session)` returns the next prompt. Once the final prompt passes, use `auth.complete_fun(session)` for fun-only flows or `auth.redirect_to_provider(...)` for real provider authentication.
+`prepare_login(...)` is still available as a compatibility alias. New code should prefer `prepare_mission(...)`, because missions can be fun-only or provider-backed.
 
 ## Built-In UI
 
-Funthenticate includes a small renderer and stylesheet for apps that want a nicer default screen without choosing a frontend framework yet.
+`render_prompt_card(...)` and `default_stylesheet()` give you a polished default screen without committing to a frontend framework.
 
 ```python
 from flask import Response, session
@@ -189,7 +208,7 @@ def login():
         next_url="/dashboard",
         prompt_keys=("authorized-popup", "operator-conversion-lock"),
     )
-    return render_page(render_prompt_card(mission, action="/login/popup"))
+    return render_page(render_prompt_card(mission, action="/login/answer"))
 
 
 def render_page(card_html: str) -> str:
@@ -207,9 +226,23 @@ def render_page(card_html: str) -> str:
     """
 ```
 
-## Drawing Challenge
+## CLI
 
-The drawing challenge compares the drawn form, not the canvas. It crops the submitted strokes to their own bounding box, rescales them into a normalized grid, centers them, rasterizes the strokes, and compares the result against a template with a tolerance radius.
+The package installs a small discovery CLI:
+
+```powershell
+uv run funthenticate
+uv run funthenticate prompts
+uv run funthenticate ideas
+uv run funthenticate demo-sequence
+uv run funthenticate prompts --json
+```
+
+## Challenge Notes
+
+### Drawing
+
+The drawing challenge compares the form of the submitted strokes, not the original canvas size or position. It crops, rescales, centers, rasterizes, and compares the drawing against a template with tolerance.
 
 ```python
 mission = auth.prepare_mission(session, "google", prompt_key="draw-key")
@@ -222,11 +255,11 @@ strokes = [
 result = auth.answer_drawing(session, strokes)
 ```
 
-`result.score` tells the UI how close the drawing was. `result.passed` decides whether the user may continue to the provider.
+`result.score` reports closeness. `result.passed` decides whether the user may continue.
 
-## Conversion Lock
+### Conversion Lock
 
-A conversion lock asks for intermediate answers. Each step can be only an operation, only a conversion, or both at once.
+A conversion lock asks for intermediate numeric answers. Each step can transform the value, convert the output base, or both.
 
 ```python
 from funthenticate import build_conversion_challenge
@@ -243,35 +276,13 @@ challenge = build_conversion_challenge(
 result = challenge.evaluate(["0x12", "0b110110", "0o57"])
 ```
 
-The same challenge can be attached to a prompt and answered through the session helper:
+Supported operations: `add`, `subtract`, `multiply`, `integer_divide`, `modulo`, `power`, `identity`.
 
-```python
-auth.prepare_mission(session, "google", prompt_key="conversion-lock")
-result = auth.answer_conversion(session, ["0x12", "0b110110", "0o57"])
-```
+Supported bases: decimal, hexadecimal, binary, and octal. Prefixed and prefixless answers are accepted where appropriate, so `0x12` and `12` can both satisfy a hexadecimal answer.
 
-Supported operations:
+### Operator Conversion Lock
 
-- `add`
-- `subtract`
-- `multiply`
-- `integer_divide`
-- `modulo`
-- `power`
-- `identity`
-
-Supported output bases:
-
-- decimal: `10`, `dec`, `decimal`
-- hexadecimal: `16`, `hex`, `hexadecimal`
-- binary: `2`, `bin`, `binary`
-- octal: `8`, `oct`, `octal`
-
-Answers may include prefixes or omit them. For example, both `0x12` and `12` are accepted for a hexadecimal answer.
-
-### Operator Guess Mode
-
-Sometimes the user should see only the converted numbers and supply the operators or base conversions that connect them. The user is not allowed to type operands, because `+5` gives away too much of the game. Instead, Funthenticate keeps the configured operands hidden, parses moves like `+ hex`, applies the hidden operand to the previous numeric value, and checks whether the computed result lands on the next shown value.
+Operator mode shows the converted values and asks the user to infer what connects them. The configured operands stay hidden, which keeps the game from becoming a copy exercise.
 
 ```python
 from funthenticate import build_conversion_operator_guess_challenge
@@ -289,38 +300,21 @@ assert challenge.display_values() == ("13", "0x12", "0b110110", "0o57")
 result = challenge.evaluate(["+ hex", "* bin", "- oct"])
 ```
 
-Use the built-in prompt when you want this as the login ritual:
+Use it through a session mission:
 
 ```python
 auth.prepare_mission(session, "google", prompt_key="operator-conversion-lock")
 result = auth.answer_conversion_operators(session, ["+ hex", "* bin", "- oct"])
 ```
 
-Accepted move answers include symbolic and word forms, without numbers:
+Accepted move forms include symbols and base names such as `+`, `*`, `//`, `%`, `**`, `hex`, `bin`, `oct`, `dec`, `+ hex`, and `mul bin`.
 
-- `+`
-- `-`
-- `*`
-- `//`
-- `%`
-- `**`
-- `add`
-- `mul`
-- `hex`
-- `bin`
-- `oct`
-- `dec`
-- `+ hex`
-- `mul bin`
+### Number Guessing
 
-## Number Guessing
-
-The number guessing game is deliberately unfair in a charming way: the secret answer is generated at random inside the configured range when the challenge starts. The user gets a limited number of tries. If they fail, the target is re-rolled, the attempt counter is reset, and the failure message makes it very clear who is to blame.
-
-The target and attempt count live in server-side challenge state instead of the browser session, so every login attempt can have its own little pocket of chance without leaking the answer into client-visible data. The default `InMemoryFunStateStore` is fine for local demos; production apps should pass a shared store implementation if they run multiple processes or servers.
+The number guessing challenge is intentionally chance-flavored. A secret target is generated with `secrets.randbelow(...)`, wrong guesses give directional feedback, and failed rounds reset with a new target.
 
 ```python
-from funthenticate import FunPrompt, NumberGuessChallenge, PromptDeck
+from funthenticate import FunAuth, FunPrompt, NumberGuessChallenge, PromptDeck
 
 challenge = NumberGuessChallenge(
     key="guess-small",
@@ -339,40 +333,35 @@ prompt = FunPrompt(
     number_guess=challenge,
 )
 
-auth = FunAuth(oauth, prompt_deck=PromptDeck((prompt,)))
+auth = FunAuth(prompt_deck=PromptDeck((prompt,)))
 auth.prepare_mission(session, "google", prompt_key="guess-small")
 result = auth.answer_number_guess(session, 4)
 ```
 
-Feedback includes:
+Feedback includes `correct`, `too-low`, and `too-high`.
 
-- `correct`
-- `too-low`
-- `too-high`
+For production deployments with multiple workers, pass a shared `FunStateStore` implementation instead of relying on the default in-memory store.
 
-What happens under the hood:
+```python
+auth = FunAuth(state_store=my_shared_store)
+```
 
-- If no target exists yet, Funthenticate generates one with `secrets.randbelow(...)` inside `range_min..range_max`.
-- Each wrong guess consumes one try and returns a directional hint.
-- If the user runs out of tries, Funthenticate generates a fresh target and resets attempts to `0`.
-- The default failure message is intentionally petty: `You failed to guess the number in time. This is your failure; the game has reset.`
+The store only needs to implement `get_number_guess`, `save_number_guess`, and `clear_mission`.
 
-That means the challenge is genuinely up to chance. The user cannot memorize a static answer between failed rounds, because failure burns the old target and starts a new tiny game.
+### Popup Acknowledgement
 
-## Popup Acknowledgement
-
-For the simplest possible ritual, use `authorized-popup`:
+The simplest ritual is `authorized-popup`:
 
 ```python
 auth.prepare_mission(session, "google", prompt_key="authorized-popup")
 result = auth.answer_popup(session, accepted=True)
 ```
 
-The prompt message is `I'm authorized`. If accepted, the challenge passes.
+The prompt says `I'm authorized`. If accepted, the challenge passes.
 
-## Custom Multiple-Choice Prompts
+### Custom Multiple Choice
 
-The default prompt deck no longer includes multiple-choice prompts, but the building blocks are still available for apps that want them:
+The default deck does not include multiple-choice prompts, but the building blocks are available.
 
 ```python
 from funthenticate import FunPrompt, FunPromptOption, PromptDeck
@@ -389,18 +378,14 @@ prompt = FunPrompt(
     failure_message="Try again.",
 )
 
-auth = FunAuth(oauth, prompt_deck=PromptDeck((prompt,)))
+auth = FunAuth(prompt_deck=PromptDeck((prompt,)))
 auth.prepare_mission(session, "google", prompt_key="custom-choice")
 result = auth.answer_prompt(session, "yes")
 ```
 
 ## Provider Helpers
 
-Provider helpers require the `auth` extra:
-
-```powershell
-uv add "funthenticate[auth]"
-```
+Provider helpers require `funthenticate[auth]`.
 
 ```python
 from funthenticate import google_provider, microsoft_entra_provider
@@ -417,30 +402,22 @@ auth.register_provider(
 
 ## Security Notes
 
-Funthenticate challenges are not password replacements and not second factors. They are playful gates, not identity proof. Use OIDC, passkeys, MFA, conditional access, and domain restrictions for actual security.
+`funthenticate` is not a replacement for OAuth, OIDC, passkeys, MFA, conditional access, or server-side authorization. Use the rituals for mood, onboarding, pacing, demos, and low-stakes gates. Use real authentication and authorization for real trust decisions.
 
 By default, `next_url` must be a same-site absolute path such as `/dashboard`. Pass a custom `next_url_validator` to `FunAuth` if your app needs stricter routing rules.
 
-For production number-guessing missions, pass a shared `FunStateStore` implementation instead of relying on the default in-memory store. The store only needs to implement `get_number_guess`, `save_number_guess`, and `clear_mission`, so Redis, a database table, or your web framework's cache all work well.
-
-```python
-from funthenticate import FunAuth
-
-auth = FunAuth(state_store=my_shared_store)
-```
-
 Good uses:
 
-- Make internal tools feel more human
-- Add a low-stakes pre-login ritual
-- Teach users a tiny workflow concept before entering an app
-- Add memorable onboarding around SSO
+- Make internal tools feel more human.
+- Add a memorable pre-login ritual before SSO.
+- Teach a small workflow concept before entering an app.
+- Build playful demos, hackathon apps, onboarding labs, or team portals.
 
 Bad uses:
 
-- Replacing OAuth/OIDC
-- Protecting sensitive data with only a drawing or guessing game
-- Treating a popup acknowledgement as identity verification
+- Replacing OAuth/OIDC.
+- Protecting sensitive data with only a drawing or guessing game.
+- Treating a popup acknowledgement as identity verification.
 
 ## Development
 
@@ -449,4 +426,7 @@ uv sync
 uv run pytest tests -xvs
 uv run ruff check .
 uv run ruff format .
+uv run python -m build
 ```
+
+Publishing notes live in `PUBLISHING.md`.

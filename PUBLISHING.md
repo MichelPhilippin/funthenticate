@@ -8,7 +8,7 @@ This project publishes from GitHub Actions using PyPI Trusted Publishing. No PyP
 2. Go to https://pypi.org/manage/account/publishing/.
 3. Add a pending trusted publisher with:
    - PyPI project name: `funthenticate`
-   - Owner: `michel-philippin`
+   - Owner: `MichelPhilippin`
    - Repository name: `funthenticate`
    - Workflow filename: `python-publish.yml`
    - Environment name: `pypi`

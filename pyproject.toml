@@ -1,6 +1,6 @@
 [project]
 name = "funthenticate"
-version = "0.1.0"
+version = "0.2.0"
 description = "Playful login and challenge rituals, with optional Authlib/OIDC integration."
 readme = "README.md"
 license = "Apache-2.0"
@@ -39,8 +39,8 @@ dependencies = []
 auth = ["authlib>=1.7.2"]
 
 [project.urls]
-Repository = "https://github.com/michel-philippin/funthenticate"
-Issues = "https://github.com/michel-philippin/funthenticate/issues"
+Repository = "https://github.com/MichelPhilippin/funthenticate"
+Issues = "https://github.com/MichelPhilippin/funthenticate/issues"
 
 [project.scripts]
 funthenticate = "funthenticate.cli:main"
