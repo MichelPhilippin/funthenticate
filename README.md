@@ -164,7 +164,7 @@ flowchart TD
 - `conversion-lock`: solve a numeric conversion chain.
 - `operator-conversion-lock`: infer the hidden operators between converted numbers.
 - `number-guess`: guess a secret number with limited tries.
-- `authorized-popup`: acknowledge `I'm authorized`.
+- `authorized-popup`: acknowledge a configurable popup message.
 
 Use one prompt:
 
@@ -358,6 +358,11 @@ result = auth.answer_popup(session, accepted=True)
 ```
 
 The prompt says `I'm authorized`. If accepted, the challenge passes.
+Pass a different message when constructing the default deck:
+
+```python
+auth = FunAuth(popup_message="I am not stupid")
+```
 
 ### Custom Multiple Choice
 

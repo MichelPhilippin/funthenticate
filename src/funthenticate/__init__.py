@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .core import (
     DEFAULT_OIDC_SCOPE,
+    DEFAULT_POPUP_MESSAGE,
     DEFAULT_SESSION_KEY,
     AuthlibOAuthRegistry,
     AuthlibRemoteApp,
@@ -57,6 +58,7 @@ from .ui import default_stylesheet, render_prompt_card
 
 __all__ = [
     "DEFAULT_OIDC_SCOPE",
+    "DEFAULT_POPUP_MESSAGE",
     "DEFAULT_SESSION_KEY",
     "AuthlibOAuthRegistry",
     "AuthlibRemoteApp",

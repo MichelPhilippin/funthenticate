@@ -460,6 +460,27 @@ def test_answer_popup_acknowledges_authorized_message() -> None:
     assert session["_fun_auth_mission"]["challenge_passed"] is True
 
 
+def test_default_popup_message_can_be_customized_from_input() -> None:
+    prompts = default_fun_prompts(popup_message="I am not stupid")
+    popup_prompt = next(prompt for prompt in prompts if prompt.key == "authorized-popup")
+
+    assert popup_prompt.prompt == "I am not stupid"
+    assert popup_prompt.popup is not None
+    assert popup_prompt.popup.message == "I am not stupid"
+
+
+def test_fun_auth_uses_custom_popup_message_for_default_deck() -> None:
+    oauth = FakeOAuth()
+    auth = FunAuth(oauth, popup_message="I am not stupid")
+    session: dict[str, object] = {}
+
+    mission = auth.prepare_login(session, "google", prompt_key="authorized-popup")
+
+    assert mission.prompt.prompt == "I am not stupid"
+    assert mission.prompt.popup is not None
+    assert mission.prompt.popup.message == "I am not stupid"
+
+
 def test_answer_popup_can_be_dismissed() -> None:
     oauth = FakeOAuth()
     auth = FunAuth(oauth, prompt_deck=PromptDeck(default_fun_prompts()))

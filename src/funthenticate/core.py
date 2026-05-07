@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 DEFAULT_OIDC_SCOPE = "openid profile email"
 DEFAULT_SESSION_KEY = "_fun_auth_mission"
+DEFAULT_POPUP_MESSAGE = "I'm authorized"
 _OPERATOR_GUESS_KIND_ALIASES = {
     "+": "add",
     "add": "add",
@@ -635,7 +636,7 @@ def format_number_for_base(value: int, base: int) -> str:
 @dataclass(frozen=True)
 class PopupChallenge:
     key: str
-    message: str = "I'm authorized"
+    message: str = DEFAULT_POPUP_MESSAGE
     confirm_label: str = "OK"
     success_message: str = "Authorization acknowledged."
     failure_message: str = "Authorization popup was not acknowledged."
@@ -973,9 +974,12 @@ class FunAuth:
         require_prompt_passed: bool = True,
         state_store: FunStateStore | None = None,
         next_url_validator: Callable[[str | None], str | None] | None = None,
+        popup_message: str = DEFAULT_POPUP_MESSAGE,
     ) -> None:
         self._oauth = oauth
-        self._prompt_deck = prompt_deck or PromptDeck(default_fun_prompts())
+        self._prompt_deck = prompt_deck or PromptDeck(
+            default_fun_prompts(popup_message=popup_message)
+        )
         self._session_key = session_key
         self._trusted_email_domains = frozenset(
             _normalize_domain(domain) for domain in trusted_email_domains
@@ -1359,7 +1363,7 @@ class FunAuth:
             raise FunAuthDenied("This email domain is not allowed for this application.")
 
 
-def default_fun_prompts() -> tuple[FunPrompt, ...]:
+def default_fun_prompts(*, popup_message: str = DEFAULT_POPUP_MESSAGE) -> tuple[FunPrompt, ...]:
     return (
         FunPrompt(
             key="draw-key",
@@ -1404,11 +1408,11 @@ def default_fun_prompts() -> tuple[FunPrompt, ...]:
         FunPrompt(
             key="authorized-popup",
             title="Authorization Popup",
-            prompt="I'm authorized",
+            prompt=popup_message,
             options=(),
             success_message="Authorization acknowledged.",
             failure_message="Authorization popup was not acknowledged.",
-            popup=PopupChallenge(key="authorized-popup"),
+            popup=PopupChallenge(key="authorized-popup", message=popup_message),
         ),
     )
 
@@ -1523,7 +1527,7 @@ def default_fun_auth_ideas() -> tuple[FunAuthIdea, ...]:
             key="authorized-popup",
             name="Authorized popup",
             description=(
-                "Show a simple popup that says I'm authorized and pass the playful "
+                "Show a simple configurable acknowledgement popup and pass the playful "
                 "gate when the user acknowledges it."
             ),
             security_role="Cosmetic acknowledgement before the real provider auth.",
