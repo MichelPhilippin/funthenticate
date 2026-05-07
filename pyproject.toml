@@ -63,7 +63,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-funthenticate = ["py.typed"]
+funthenticate = ["py.typed", "assets/*.css"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

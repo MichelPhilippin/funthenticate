@@ -53,6 +53,7 @@ from .core import (
     microsoft_entra_provider,
     normalize_drawing,
 )
+from .ui import default_stylesheet, render_prompt_card
 
 __all__ = [
     "DEFAULT_OIDC_SCOPE",
@@ -106,4 +107,6 @@ __all__ = [
     "google_provider",
     "microsoft_entra_provider",
     "normalize_drawing",
+    "default_stylesheet",
+    "render_prompt_card",
 ]

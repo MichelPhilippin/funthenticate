@@ -27,6 +27,7 @@ from funthenticate import (
     google_provider,
     microsoft_entra_provider,
     normalize_drawing,
+    render_prompt_card,
 )
 from funthenticate.cli import main as cli_main
 from funthenticate.core import parse_conversion_operator
@@ -694,3 +695,19 @@ def test_cli_lists_prompts_as_json(capsys: pytest.CaptureFixture[str]) -> None:
     output = capsys.readouterr().out
     assert "authorized-popup" in output
     assert "draw-key" in output
+
+
+def test_render_prompt_card_outputs_polished_prompt_markup() -> None:
+    auth = FunAuth()
+    session: dict[str, object] = {}
+    mission = auth.prepare_mission(
+        session,
+        prompt_keys=("authorized-popup", "operator-conversion-lock"),
+    )
+
+    html = render_prompt_card(mission, action="/login/popup")
+
+    assert 'class="funthenticate-card"' in html
+    assert "Step 1 of 2" in html
+    assert "Authorization Popup" in html
+    assert 'action="/login/popup"' in html

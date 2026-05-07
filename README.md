@@ -165,6 +165,48 @@ mission = auth.prepare_mission(
 
 `prepare_login(...)` remains available as a compatibility alias, but new code should prefer `prepare_mission(...)`. After each successful answer, `auth.current_mission(session)` returns the next prompt. Once the final prompt passes, use `auth.complete_fun(session)` for fun-only flows or `auth.redirect_to_provider(...)` for real provider authentication.
 
+## Built-In UI
+
+Funthenticate includes a small renderer and stylesheet for apps that want a nicer default screen without choosing a frontend framework yet.
+
+```python
+from flask import Response, session
+
+from funthenticate import FunAuth, default_stylesheet, render_prompt_card
+
+auth = FunAuth()
+
+
+@app.get("/funthenticate.css")
+def funthenticate_css():
+    return Response(default_stylesheet(), mimetype="text/css")
+
+
+@app.get("/login")
+def login():
+    mission = auth.prepare_mission(
+        session,
+        next_url="/dashboard",
+        prompt_keys=("authorized-popup", "operator-conversion-lock"),
+    )
+    return render_page(render_prompt_card(mission, action="/login/popup"))
+
+
+def render_page(card_html: str) -> str:
+    return f"""
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="/funthenticate.css">
+        <title>Funthenticate</title>
+      </head>
+      <body>{card_html}</body>
+    </html>
+    """
+```
+
 ## Drawing Challenge
 
 The drawing challenge compares the drawn form, not the canvas. It crops the submitted strokes to their own bounding box, rescales them into a normalized grid, centers them, rasterizes the strokes, and compares the result against a template with a tolerance radius.
