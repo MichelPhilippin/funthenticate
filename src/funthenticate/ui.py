@@ -37,7 +37,7 @@ def render_prompt_card(
             '    <header class="funthenticate-header">',
             f'      <p class="funthenticate-progress">{progress}</p>',
             f"      <h1>{_escape(prompt.title)}</h1>",
-            f'      <p class="funthenticate-prompt">{_escape(prompt.prompt)}</p>',
+            _prompt_text(prompt),
             "    </header>",
             form_open,
             body,
@@ -51,8 +51,8 @@ def render_prompt_card(
 def _prompt_body(prompt: FunPrompt) -> str:
     if prompt.popup is not None:
         confirm_button = (
-            '      <button class="funthenticate-primary" type="submit">'
-            f"{_escape(prompt.popup.confirm_label)}</button>"
+            '      <button class="funthenticate-primary funthenticate-popup-submit" '
+            f'type="submit">{_escape(prompt.popup.message)}</button>'
         )
         return "\n".join(
             (
@@ -100,6 +100,12 @@ def _prompt_body(prompt: FunPrompt) -> str:
         options = [_option_button(option.key, option.label) for option in prompt.options]
         return "\n".join(options)
     return '      <button class="funthenticate-primary" type="submit">Continue</button>'
+
+
+def _prompt_text(prompt: FunPrompt) -> str:
+    if prompt.popup is not None:
+        return '      <p class="funthenticate-prompt"></p>'
+    return f'      <p class="funthenticate-prompt">{_escape(prompt.prompt)}</p>'
 
 
 def _progress_text(index: int, count: int) -> str:

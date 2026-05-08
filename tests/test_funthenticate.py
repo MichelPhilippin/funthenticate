@@ -731,4 +731,9 @@ def test_render_prompt_card_outputs_polished_prompt_markup() -> None:
     assert 'class="funthenticate-card"' in html
     assert "Step 1 of 2" in html
     assert "Authorization Popup" in html
+    assert '<p class="funthenticate-prompt"></p>' in html
+    assert (
+        '<button class="funthenticate-primary funthenticate-popup-submit" '
+        "type=\"submit\">I&#x27;m authorized</button>"
+    ) in html
     assert 'action="/login/popup"' in html
