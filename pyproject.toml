@@ -1,6 +1,6 @@
 [project]
 name = "funthenticate"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Playful login and challenge rituals, with optional Authlib/OIDC integration."
 readme = "README.md"
 license = "Apache-2.0"
@@ -46,7 +46,7 @@ Issues = "https://github.com/MichelPhilippin/funthenticate/issues"
 funthenticate = "funthenticate.cli:main"
 
 [build-system]
-requires = ["setuptools>=80.0.0", "wheel"]
+requires = ["setuptools>=80.0.0", "setuptools-scm>=8.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
@@ -56,6 +56,7 @@ dev = [
     "pytest>=8.4.0",
     "ruff>=0.11.0",
     "setuptools>=80.0.0",
+    "setuptools-scm>=8.0.0",
     "twine>=6.0.0",
 ]
 
@@ -67,6 +68,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 funthenticate = ["py.typed", "assets/*.css"]
+
+[tool.setuptools_scm]
+tag_regex = "^funthenticate_v(?P<version>\\d+\\.\\d+\\.\\d+.*)$"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

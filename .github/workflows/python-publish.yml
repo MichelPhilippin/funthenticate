@@ -17,6 +17,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
@@ -25,7 +26,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install build tooling
-        run: python -m pip install --upgrade build flask pytest ruff twine
+        run: python -m pip install --upgrade build flask pytest ruff setuptools-scm twine
 
       - name: Run tests
         run: python -m pytest tests -xvs

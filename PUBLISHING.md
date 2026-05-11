@@ -17,10 +17,9 @@ This project publishes from GitHub Actions using PyPI Trusted Publishing. No PyP
 
 ## Release flow
 
-1. Update `version` in `pyproject.toml`.
-2. Commit and push the change.
-3. Create a GitHub release for that commit.
-4. When the release is published, `.github/workflows/python-publish.yml` builds the package, runs tests and ruff, validates the distributions with Twine, and publishes to PyPI.
+1. Commit and push the release changes.
+2. Create a GitHub release with a tag like `funthenticate_v0.4.0` for that commit.
+3. When the release is published, `.github/workflows/python-publish.yml` builds the package, reads the package version from the tag, runs tests and ruff, validates the distributions with Twine, and publishes to PyPI.
 
 ## Local preflight
 
