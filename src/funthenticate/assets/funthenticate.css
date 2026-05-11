@@ -98,7 +98,15 @@
   border-color: var(--fun-focus);
 }
 
+.funthenticate-field input.funthenticate-field-correct {
+  border-color: #2a955d;
+  background: rgba(42, 149, 93, 0.12);
+  color: #2a955d;
+  font-weight: 760;
+}
+
 .funthenticate-primary,
+.funthenticate-secondary,
 .funthenticate-option {
   min-height: 46px;
   border: 0;
@@ -115,6 +123,17 @@
 
 .funthenticate-primary:hover {
   background: var(--fun-primary-hover);
+}
+
+.funthenticate-secondary {
+  border: 1px solid var(--fun-line);
+  background: #fbfcfb;
+  color: var(--fun-text);
+}
+
+.funthenticate-secondary:hover {
+  border-color: rgba(0, 120, 212, 0.38);
+  background: rgba(0, 120, 212, 0.08);
 }
 
 .funthenticate-option {
@@ -138,7 +157,13 @@
   white-space: normal;
 }
 
-.funthenticate-canvas-placeholder {
+.funthenticate-drawing {
+  display: grid;
+  gap: 10px;
+}
+
+.funthenticate-canvas {
+  width: 100%;
   min-height: 220px;
   border: 1px dashed rgba(42, 149, 93, 0.55);
   border-radius: 8px;
@@ -147,6 +172,13 @@
     linear-gradient(90deg, rgba(0, 120, 212, 0.16) 1px, transparent 1px),
     #fbfcfb;
   background-size: 18px 18px;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.funthenticate-canvas:focus-visible {
+  outline: 3px solid rgba(0, 120, 212, 0.3);
+  border-color: var(--fun-focus);
 }
 
 @media (max-width: 560px) {

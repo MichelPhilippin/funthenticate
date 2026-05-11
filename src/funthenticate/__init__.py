@@ -53,6 +53,7 @@ from .core import (
     google_provider,
     microsoft_entra_provider,
     normalize_drawing,
+    parse_drawing_strokes,
 )
 from .ui import default_stylesheet, render_prompt_card
 
@@ -109,6 +110,7 @@ __all__ = [
     "google_provider",
     "microsoft_entra_provider",
     "normalize_drawing",
+    "parse_drawing_strokes",
     "default_stylesheet",
     "render_prompt_card",
 ]

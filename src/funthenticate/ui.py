@@ -22,13 +22,19 @@ def render_prompt_card(
     *,
     action: str = DEFAULT_FORM_ACTION,
     method: str = DEFAULT_FORM_METHOD,
+    check_action: str | None = None,
 ) -> str:
     prompt = mission.prompt
     progress = _progress_text(mission.prompt_index, mission.prompt_count)
-    body = _prompt_body(prompt)
+    body = _prompt_body(prompt, check_action=check_action)
+    check_action_attr = (
+        f' data-funthenticate-check-action="{_escape(check_action)}"'
+        if check_action is not None
+        else ""
+    )
     form_open = (
         f'    <form class="funthenticate-form" action="{_escape(action)}" '
-        f'method="{_escape(method)}">'
+        f'method="{_escape(method)}"{check_action_attr}>'
     )
     return "\n".join(
         (
@@ -48,7 +54,7 @@ def render_prompt_card(
     )
 
 
-def _prompt_body(prompt: FunPrompt) -> str:
+def _prompt_body(prompt: FunPrompt, *, check_action: str | None = None) -> str:
     if prompt.popup is not None:
         confirm_button = (
             '      <button class="funthenticate-primary funthenticate-popup-submit" '
@@ -76,6 +82,8 @@ def _prompt_body(prompt: FunPrompt) -> str:
             for index, _step in enumerate(prompt.conversion_challenge.steps, start=1)
         ]
         fields.append('      <button class="funthenticate-primary" type="submit">Open</button>')
+        if check_action is not None:
+            fields.append(_step_check_script())
         return "\n".join(fields)
     if prompt.operator_guess_challenge is not None:
         values = prompt.operator_guess_challenge.display_values()
@@ -87,13 +95,22 @@ def _prompt_body(prompt: FunPrompt) -> str:
             for index, _step in enumerate(prompt.operator_guess_challenge.steps, start=1)
         )
         fields.append('      <button class="funthenticate-primary" type="submit">Connect</button>')
+        if check_action is not None:
+            fields.append(_step_check_script())
         return "\n".join(fields)
     if prompt.drawing_template is not None:
         return "\n".join(
             (
-                '      <div class="funthenticate-canvas-placeholder" '
-                'role="img" aria-label="Drawing pad"></div>',
+                '      <div class="funthenticate-drawing">',
+                '        <canvas class="funthenticate-canvas" '
+                'aria-label="Drawing pad" role="img"></canvas>',
+                '        <input class="funthenticate-drawing-strokes" '
+                'name="strokes" type="hidden" value="[]">',
+                '        <button class="funthenticate-secondary funthenticate-drawing-reset" '
+                'type="button">Reset</button>',
+                "      </div>",
                 '      <button class="funthenticate-primary" type="submit">Match</button>',
+                _drawing_script(),
             )
         )
     if prompt.options:
@@ -128,6 +145,165 @@ def _option_button(key: str, label: str) -> str:
         '      <button class="funthenticate-option" type="submit" '
         f'name="answer_key" value="{_escape(key)}">{_escape(label)}</button>'
     )
+
+
+def _drawing_script() -> str:
+    return """
+      <script>
+        (() => {
+          const currentScript = document.currentScript;
+          const form = currentScript?.closest("form");
+          const drawing = form?.querySelector(".funthenticate-drawing");
+          const canvas = drawing?.querySelector(".funthenticate-canvas");
+          const strokesInput = drawing?.querySelector(".funthenticate-drawing-strokes");
+          const reset = drawing?.querySelector(".funthenticate-drawing-reset");
+          if (!canvas || !strokesInput || !reset) {
+            return;
+          }
+
+          const context = canvas.getContext("2d");
+          const strokes = [];
+          let currentStroke = null;
+
+          const resize = () => {
+            const rect = canvas.getBoundingClientRect();
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.max(Math.round(rect.width * ratio), 1);
+            canvas.height = Math.max(Math.round(rect.height * ratio), 1);
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            redraw();
+          };
+
+          const drawSegment = (start, end) => {
+            context.strokeStyle = "#172026";
+            context.lineWidth = 5;
+            context.lineCap = "round";
+            context.lineJoin = "round";
+            context.beginPath();
+            context.moveTo(start.x, start.y);
+            context.lineTo(end.x, end.y);
+            context.stroke();
+          };
+
+          const redraw = () => {
+            const rect = canvas.getBoundingClientRect();
+            context.clearRect(0, 0, rect.width, rect.height);
+            for (const stroke of strokes) {
+              for (let index = 1; index < stroke.length; index += 1) {
+                drawSegment(stroke[index - 1], stroke[index]);
+              }
+            }
+          };
+
+          const pointFromEvent = (event) => {
+            const rect = canvas.getBoundingClientRect();
+            return {
+              x: Number((event.clientX - rect.left).toFixed(2)),
+              y: Number((event.clientY - rect.top).toFixed(2)),
+            };
+          };
+
+          const save = () => {
+            strokesInput.value = JSON.stringify(
+              strokes.map((stroke) => stroke.map((point) => [point.x, point.y]))
+            );
+          };
+
+          canvas.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            canvas.setPointerCapture(event.pointerId);
+            currentStroke = [pointFromEvent(event)];
+            strokes.push(currentStroke);
+            save();
+          });
+
+          canvas.addEventListener("pointermove", (event) => {
+            if (!currentStroke) {
+              return;
+            }
+            event.preventDefault();
+            const point = pointFromEvent(event);
+            const previous = currentStroke[currentStroke.length - 1];
+            currentStroke.push(point);
+            drawSegment(previous, point);
+            save();
+          });
+
+          const endStroke = (event) => {
+            if (!currentStroke) {
+              return;
+            }
+            canvas.releasePointerCapture?.(event.pointerId);
+            currentStroke = null;
+            save();
+          };
+
+          canvas.addEventListener("pointerup", endStroke);
+          canvas.addEventListener("pointercancel", endStroke);
+          reset.addEventListener("click", () => {
+            strokes.splice(0, strokes.length);
+            currentStroke = null;
+            save();
+            redraw();
+          });
+
+          resize();
+          window.addEventListener("resize", resize);
+        })();
+      </script>""".strip()
+
+
+def _step_check_script() -> str:
+    return """
+      <script>
+        (() => {
+          const currentScript = document.currentScript;
+          const form = currentScript?.closest("form");
+          const checkAction = form?.dataset.funthenticateCheckAction;
+          if (!form || !checkAction) {
+            return;
+          }
+
+          const fields = Array.from(
+            form.querySelectorAll('input[name="operators"], input[name="answers"]')
+          );
+          if (!fields.length) {
+            return;
+          }
+
+          const checkField = async (field, index) => {
+            const formData = new FormData();
+            fields.forEach((field) => formData.append(field.name, field.value));
+            formData.append("index", String(index));
+            const response = await fetch(checkAction, {
+              method: "POST",
+              body: formData,
+            });
+            const data = await response.json();
+
+            field.setCustomValidity(data.correct ? "" : data.message);
+            if (data.correct) {
+              field.classList.add("funthenticate-field-correct");
+              field.readOnly = true;
+              fields[index + 1]?.focus();
+            } else {
+              field.reportValidity();
+            }
+          };
+
+          fields.forEach((field, index) => {
+            field.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter") {
+                return;
+              }
+              event.preventDefault();
+              if (!field.readOnly) {
+                checkField(field, index);
+              }
+            });
+          });
+        })();
+      </script>""".strip()
 
 
 def _escape(value: object) -> str:

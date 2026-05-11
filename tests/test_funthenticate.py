@@ -27,6 +27,7 @@ from funthenticate import (
     google_provider,
     microsoft_entra_provider,
     normalize_drawing,
+    parse_drawing_strokes,
     render_prompt_card,
 )
 from funthenticate.cli import main as cli_main
@@ -281,6 +282,21 @@ def test_answer_drawing_updates_login_mission() -> None:
     assert result.passed is True
     assert session["_fun_auth_mission"]["challenge_passed"] is True
     assert session["_fun_auth_mission"]["drawing_score"] >= result.score
+
+
+def test_parse_drawing_strokes_reads_builtin_canvas_payload() -> None:
+    strokes = parse_drawing_strokes("[[[12.5, 10], [40, 22]], [[5, 6], [7, 8]]]")
+
+    assert strokes == (
+        (DrawingPoint(12.5, 10.0), DrawingPoint(40.0, 22.0)),
+        (DrawingPoint(5.0, 6.0), DrawingPoint(7.0, 8.0)),
+    )
+
+
+@pytest.mark.parametrize("payload", ["not-json", "{}", '["not-a-stroke"]', "[[[null, 1]]]"])
+def test_parse_drawing_strokes_rejects_invalid_payloads(payload: str) -> None:
+    with pytest.raises(FunAuthDenied):
+        parse_drawing_strokes(payload)
 
 
 def test_conversion_challenge_reports_each_intermediate_result() -> None:
@@ -734,6 +750,76 @@ def test_render_prompt_card_outputs_polished_prompt_markup() -> None:
     assert '<p class="funthenticate-prompt"></p>' in html
     assert (
         '<button class="funthenticate-primary funthenticate-popup-submit" '
-        "type=\"submit\">I&#x27;m authorized</button>"
+        'type="submit">I&#x27;m authorized</button>'
     ) in html
     assert 'action="/login/popup"' in html
+
+
+def test_render_prompt_card_outputs_builtin_template_for_each_default_prompt() -> None:
+    prompt_markers = {
+        "draw-key": ('name="strokes"', "funthenticate-canvas", "funthenticate-drawing-reset"),
+        "conversion-lock": ('name="answers"', "Open"),
+        "operator-conversion-lock": ("funthenticate-value-chain", 'name="operators"', "Connect"),
+        "number-guess": ('name="guess"', "Try"),
+        "authorized-popup": ('name="accepted"', "funthenticate-popup-submit"),
+    }
+
+    for prompt in default_fun_prompts():
+        html = render_prompt_card(FunMission(None, prompt, None))
+
+        assert '<form class="funthenticate-form"' in html
+        for marker in prompt_markers[prompt.key]:
+            assert marker in html
+
+
+@pytest.mark.parametrize(
+    ("prompt_key", "field_name"),
+    (("conversion-lock", "answers"), ("operator-conversion-lock", "operators")),
+)
+def test_render_prompt_card_adds_builtin_step_feedback_when_check_action_is_set(
+    prompt_key: str,
+    field_name: str,
+) -> None:
+    auth = FunAuth()
+    session: dict[str, object] = {}
+    mission = auth.prepare_mission(session, prompt_key=prompt_key)
+
+    html = render_prompt_card(
+        mission,
+        action="/login/answer",
+        check_action="/login/check",
+    )
+
+    assert 'data-funthenticate-check-action="/login/check"' in html
+    assert f'input[name="{field_name}"]' in html
+    assert "fetch(checkAction" in html
+    assert "event.key !== &quot;Enter&quot;" not in html
+    assert 'event.key !== "Enter"' in html
+    assert "funthenticate-field-correct" in html
+
+
+def test_render_prompt_card_omits_step_feedback_without_check_action() -> None:
+    auth = FunAuth()
+    session: dict[str, object] = {}
+    mission = auth.prepare_mission(session, prompt_key="conversion-lock")
+
+    html = render_prompt_card(mission, action="/login/answer")
+
+    assert "data-funthenticate-check-action" not in html
+    assert "fetch(checkAction" not in html
+
+
+def test_render_prompt_card_drawing_template_submits_canvas_strokes() -> None:
+    auth = FunAuth()
+    session: dict[str, object] = {}
+    mission = auth.prepare_mission(session, prompt_key="draw-key")
+
+    html = render_prompt_card(mission, action="/login/draw")
+
+    assert '<canvas class="funthenticate-canvas"' in html
+    assert (
+        '<input class="funthenticate-drawing-strokes" name="strokes" type="hidden" value="[]">'
+    ) in html
+    assert "JSON.stringify" in html
+    assert "pointerdown" in html
+    assert 'type="button">Reset</button>' in html

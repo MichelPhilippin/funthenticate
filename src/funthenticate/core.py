@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import secrets
 from collections.abc import Callable, Iterable, Mapping, MutableMapping, Sequence
@@ -292,6 +293,26 @@ def normalize_drawing(
     )
     pixels = _rasterize_strokes(normalized_strokes, grid_size, stroke_radius)
     return NormalizedDrawing(pixels=frozenset(pixels), grid_size=grid_size)
+
+
+def parse_drawing_strokes(value: str) -> tuple[tuple[DrawingPoint, ...], ...]:
+    """Parse the JSON payload submitted by the built-in drawing UI."""
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError as error:
+        raise FunAuthDenied("Drawing strokes must be valid JSON.") from error
+    if not isinstance(decoded, Sequence) or isinstance(decoded, str | bytes):
+        raise FunAuthDenied("Drawing strokes must be a list of strokes.")
+    parsed_strokes = []
+    for stroke in decoded:
+        if not _is_point_sequence(stroke):
+            raise FunAuthDenied("Drawing strokes must be lists of points.")
+        parsed_strokes.append(tuple(_coerce_drawing_point(point) for point in stroke))
+    return tuple(stroke for stroke in parsed_strokes if stroke)
+
+
+def _is_point_sequence(value: object) -> bool:
+    return isinstance(value, Sequence) and not isinstance(value, str | bytes)
 
 
 @dataclass(frozen=True)
