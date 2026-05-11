@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import html
+import json
 from types import SimpleNamespace
 
 import pytest
 
-from funthenticate import FunAuth, FunAuthDenied, default_stylesheet, render_prompt_card
+from funthenticate import (
+    FunAuth,
+    FunAuthDenied,
+    default_key_drawing_template,
+    default_stylesheet,
+    parse_drawing_strokes,
+    render_prompt_card,
+)
 
 flask = pytest.importorskip("flask")
 Flask = flask.Flask
@@ -35,7 +43,12 @@ def create_showcase_demo_app() -> Flask:
         mission = auth.prepare_mission(
             session,
             next_url="/dashboard",
-            prompt_keys=("authorized-popup", "operator-conversion-lock"),
+            prompt_keys=(
+                "authorized-popup",
+                "draw-key",
+                "conversion-lock",
+                "operator-conversion-lock",
+            ),
         )
         return _page(_render_showcase_card(mission))
 
@@ -89,7 +102,11 @@ def create_showcase_demo_app() -> Flask:
 
 
 def _render_showcase_card(mission: object) -> str:
-    card_html = render_prompt_card(mission, action=url_for("answer_login"))
+    card_html = render_prompt_card(
+        mission,
+        action=url_for("answer_login"),
+        check_action=url_for("check_login_step"),
+    )
     prompt = mission.prompt
     if prompt.operator_guess_challenge is not None:
         card_html = _remove_operator_value_chain(card_html, prompt.operator_guess_challenge)
@@ -120,7 +137,7 @@ def _answer_current_prompt(auth: FunAuth) -> object:
     if prompt.number_guess is not None:
         return auth.answer_number_guess(session, int(request.form["guess"]))
     if prompt.drawing_template is not None:
-        return auth.answer_drawing(session, prompt.drawing_template.strokes)
+        return auth.answer_drawing(session, parse_drawing_strokes(request.form["strokes"]))
     return auth.answer_prompt(session, request.form["answer_key"])
 
 
@@ -240,60 +257,7 @@ def _page(card_html: str, message: str = "", feedback_html: str = "") -> str:
             color: #df1a36;
           }}
 
-          .funthenticate-field input.demo-field-correct {{
-            border-color: #2a955d;
-            background: rgba(42, 149, 93, 0.12);
-            color: #2a955d;
-            font-weight: 760;
-          }}
         </style>
-        <script>
-          document.addEventListener("DOMContentLoaded", () => {{
-            const form = document.querySelector(".funthenticate-form");
-            if (!form) {{
-              return;
-            }}
-
-            const fields = Array.from(
-              form.querySelectorAll('input[name="operators"], input[name="answers"]')
-            );
-            if (!fields.length) {{
-              return;
-            }}
-
-            const checkField = async (field, index) => {{
-              const formData = new FormData();
-              fields.forEach((field) => formData.append(field.name, field.value));
-              formData.append("index", String(index));
-              const response = await fetch("/login/check", {{
-                method: "POST",
-                body: formData,
-              }});
-              const data = await response.json();
-
-              field.setCustomValidity(data.correct ? "" : data.message);
-              if (data.correct) {{
-                field.classList.add("demo-field-correct");
-                field.readOnly = true;
-                fields[index + 1]?.focus();
-              }} else {{
-                field.reportValidity();
-              }}
-            }};
-
-            fields.forEach((field, index) => {{
-              field.addEventListener("keydown", (event) => {{
-                if (event.key !== "Enter") {{
-                  return;
-                }}
-                event.preventDefault();
-                if (!field.readOnly) {{
-                  checkField(field, index);
-                }}
-              }});
-            }});
-          }});
-        </script>
         <title>Funthenticate Showcase Demo</title>
       </head>
       <body>
@@ -675,12 +639,44 @@ def _conversion_examples() -> str:
     """
 
 
+def _default_key_strokes_payload() -> str:
+    return json.dumps(
+        [
+            [[point.x, point.y] for point in stroke]
+            for stroke in default_key_drawing_template().strokes
+        ]
+    )
+
+
+def _default_conversion_answers() -> list[str]:
+    return ["0x12", "0b110110", "0o57"]
+
+
+def _advance_to_conversion_lock(client: object) -> None:
+    client.get("/login")
+    client.post("/login/answer", data={"accepted": "true"})
+    client.post("/login/answer", data={"strokes": _default_key_strokes_payload()})
+
+
+def _advance_to_operator_lock(client: object) -> None:
+    _advance_to_conversion_lock(client)
+    client.post("/login/answer", data={"answers": _default_conversion_answers()})
+
+
 def test_showcase_flask_server_completes_fun_only_flow() -> None:
     app = create_showcase_demo_app()
     client = app.test_client()
 
     login_response = client.get("/login")
     popup_response = client.post("/login/answer", data={"accepted": "true"})
+    drawing_response = client.post(
+        "/login/answer",
+        data={"strokes": _default_key_strokes_payload()},
+    )
+    conversion_response = client.post(
+        "/login/answer",
+        data={"answers": _default_conversion_answers()},
+    )
     operator_response = client.post(
         "/login/answer",
         data={"operators": ["0x05", "0b11", "0o7"]},
@@ -690,32 +686,56 @@ def test_showcase_flask_server_completes_fun_only_flow() -> None:
     assert login_response.status_code == 200
     assert b"Authorization Popup" in login_response.data
     assert popup_response.status_code == 200
-    assert b"Operator Conversion Lock" in popup_response.data
-    assert b'demo-field-question">13 + ___ = 0x12' in popup_response.data
-    assert b'demo-field-question">0x12 * ___ = 0b110110' in popup_response.data
-    assert b"funthenticate-value-chain" not in popup_response.data
-    assert b"-&gt;" not in popup_response.data
-    assert b"0x05" in popup_response.data
-    assert b"0b101" in popup_response.data
-    assert b"0x03" not in popup_response.data
-    assert b"0x07" not in popup_response.data
-    assert popup_response.data.count(b"Example entry") == 1
-    assert b'demo-example-prefix">Example entry:' in popup_response.data
-    assert popup_response.data.index(b"Example entry") < popup_response.data.index(b"Connect")
-    assert b"Move" not in popup_response.data
-    assert b"Accepted move examples" not in popup_response.data
-    assert b"add hex" not in popup_response.data
-    assert b"mul bin" not in popup_response.data
+    assert b"Draw the Key" in popup_response.data
+    assert b"Draw the key shape to unlock this login." in popup_response.data
+    assert b'name="strokes"' in popup_response.data
+    assert b"funthenticate-canvas" in popup_response.data
+    assert drawing_response.status_code == 200
+    assert b"Conversion Lock" in drawing_response.data
+    assert b'name="answers"' in drawing_response.data
+    assert b"Answers can use prefixes or plain digits" in drawing_response.data
+    assert conversion_response.status_code == 200
+    assert b"Operator Conversion Lock" in conversion_response.data
+    assert b'demo-field-question">13 + ___ = 0x12' in conversion_response.data
+    assert b'demo-field-question">0x12 * ___ = 0b110110' in conversion_response.data
+    assert b"funthenticate-value-chain" not in conversion_response.data
+    assert b"-&gt;" not in conversion_response.data
+    assert b"0x05" in conversion_response.data
+    assert b"0b101" in conversion_response.data
+    assert b"0x03" not in conversion_response.data
+    assert b"0x07" not in conversion_response.data
+    assert conversion_response.data.count(b"Example entry") == 1
+    assert b'demo-example-prefix">Example entry:' in conversion_response.data
+    assert conversion_response.data.index(b"Example entry") < conversion_response.data.index(
+        b"Connect"
+    )
+    assert b"Move" not in conversion_response.data
+    assert b"Accepted move examples" not in conversion_response.data
+    assert b"add hex" not in conversion_response.data
+    assert b"mul bin" not in conversion_response.data
     assert operator_response.status_code == 200
     assert b"Dashboard unlocked: Certified Fun" in operator_response.data
+
+
+def test_showcase_flask_server_keeps_user_on_drawing_prompt_after_wrong_key() -> None:
+    app = create_showcase_demo_app()
+    client = app.test_client()
+
+    client.get("/login")
+    client.post("/login/answer", data={"accepted": "true"})
+    response = client.post("/login/answer", data={"strokes": "[[[0, 0], [5, 10], [10, 0]]]"})
+
+    assert response.status_code == 400
+    assert b"That drawing did not match the template closely enough." in response.data
+    assert b"Draw the Key" in response.data
+    assert b"funthenticate-canvas" in response.data
 
 
 def test_showcase_flask_server_keeps_user_on_prompt_after_wrong_operator() -> None:
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post("/login/answer", data={"operators": ["- hex", "* bin", "- oct"]})
 
     assert response.status_code == 400
@@ -728,12 +748,41 @@ def test_showcase_flask_server_keeps_user_on_prompt_after_wrong_operator() -> No
     assert b"correct" in response.data
 
 
+def test_showcase_flask_server_checks_current_conversion_box_without_advancing() -> None:
+    app = create_showcase_demo_app()
+    client = app.test_client()
+
+    _advance_to_conversion_lock(client)
+    response = client.post(
+        "/login/check",
+        data={"answers": ["0x12", "", ""], "index": "0"},
+    )
+    dashboard_response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert response.json == {"correct": True, "message": "Correct."}
+    assert dashboard_response.status_code == 403
+
+
+def test_showcase_flask_server_rejects_only_current_wrong_conversion_box() -> None:
+    app = create_showcase_demo_app()
+    client = app.test_client()
+
+    _advance_to_conversion_lock(client)
+    response = client.post(
+        "/login/check",
+        data={"answers": ["0x11", "", ""], "index": "0"},
+    )
+
+    assert response.status_code == 200
+    assert response.json == {"correct": False, "message": "That box needs another try."}
+
+
 def test_showcase_flask_server_checks_current_operator_box_without_advancing() -> None:
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post(
         "/login/check",
         data={"operators": ["0x05", "", ""], "index": "0"},
@@ -749,8 +798,7 @@ def test_showcase_flask_server_allows_multiple_entries_for_current_question() ->
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post(
         "/login/check",
         data={"operators": ["4, 0x05, 0b110", "", ""], "index": "0"},
@@ -767,8 +815,7 @@ def test_showcase_flask_server_accepts_decimal_hex_binary_and_octal_operands(
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post(
         "/login/check",
         data={"operators": [f"+ hex {operand}", "", ""], "index": "0"},
@@ -782,8 +829,7 @@ def test_showcase_flask_server_rejects_only_current_wrong_operator_box() -> None
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post(
         "/login/check",
         data={"operators": ["0x04", "", ""], "index": "0"},
@@ -797,8 +843,7 @@ def test_showcase_flask_server_rejects_word_operator_aliases() -> None:
     app = create_showcase_demo_app()
     client = app.test_client()
 
-    client.get("/login")
-    client.post("/login/answer", data={"accepted": "true"})
+    _advance_to_operator_lock(client)
     response = client.post("/login/answer", data={"operators": ["addhex", "mul bin", "- oct"]})
 
     assert response.status_code == 400
